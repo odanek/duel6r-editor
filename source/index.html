@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+        <title>Duel 6 - Editor</title>
+        <script type="text/javascript" src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+        <script type="text/javascript" src="editor.js"></script>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="editor.css">
+	</head>
+	<body>
+		<header>Duel 6 Reloaded - Level Editor</header>
+		<main>
+			<div class="editor">
+				<canvas class="grid" width="0" height="0"></canvas>
+				<canvas class="blocks" width="0" height="0"></canvas>
+				<canvas class="elevators" width="0" height="0"></canvas>
+			</div>
+			
+			<ul class="control-panel">
+				<li class="level-selection">
+					<h3>Level</h3>
+					<form action="" method="post" class="form-horizontal">
+						<button type="button" class="new-level btn btn-success">New</button>
+						<label class="btn btn-success">
+							<input type="file" name="level-file" accept=".json" autocomplete="off" />						
+							<span class="glyphicon glyphicon-floppy-open"></span> Open
+						</label>						
+					</form>
+					
+					<table class="level-dimensions">
+						<tr><td>Width:</td><td class="level-width">-</td></tr>
+						<tr><td>Height:</td><td class="level-height">-</td></tr>
+					</table>
+				</li>
+				<li class="blocks">
+					<h3>Block</h3>
+					<ul></ul>					
+				</li>
+				<li class="zoom">
+					<h3>Zoom</h3>
+					<div class="input-group">
+						<span class="input-group-btn"><button class="zoom-out btn btn-success"><span class="glyphicon glyphicon-zoom-out"></span></button></span>
+						<input class="zoom-val form-control" type="text" value="100%" disabled size="10" />
+						<span class="input-group-btn"><button class="zoom-in btn btn-success"><span class="glyphicon glyphicon-zoom-in"></span></button></span>
+					</div>
+				</li>
+			</ul>
+		</main>
+		<footer></footer>
+	</body>
+</html>

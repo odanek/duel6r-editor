@@ -1,0 +1,115 @@
+[ {
+  "kind" : "EMPTY_SPACE",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WATER",
+  "animations" : 1
+}, {
+  "kind" : "WATER",
+  "animations" : 0
+}, {
+  "kind" : "FRONT_AND_BACK_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "WATERFALL",
+  "animations" : 3
+}, {
+  "kind" : "WATERFALL",
+  "animations" : 0
+}, {
+  "kind" : "WATERFALL",
+  "animations" : 0
+}, {
+  "kind" : "WATERFALL",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "WATER",
+  "animations" : 1
+}, {
+  "kind" : "WATER",
+  "animations" : 0
+}, {
+  "kind" : "BACK4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "WALL",
+  "animations" : 0
+}, {
+  "kind" : "FRONT4_SPRITE",
+  "animations" : 0
+} ]
