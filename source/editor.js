@@ -53,7 +53,7 @@
 			},
 			
 			getAnimationCount: function () {
-				return meta.animations + 1;
+				return meta.animations.length;
 			},
 			
 			isAnimated: function () {
@@ -67,7 +67,7 @@
 								
 				for (var i = 0; i < animations; i++) {
 					var img = new Image();
-					var path = 'blocks/' + (index + i) + '.png';
+					var path = 'blocks/' + meta.animations[i] + '.png';
 					img.src = path;
 					img.onload = function () {
 						loaded++;
@@ -106,18 +106,10 @@
 			curBlock = 0;
 			
 		function loadBlockMeta() {
-			return $.getJSON('data/block.json').done(function (data) {
-				var idx = 0,
-					skip = 0;
-					
+			return $.getJSON('data/blocks.json').done(function (data) {
+				var idx = 0;					
 				data.forEach(function (blockMeta) {
-					if (skip > 0) {
-						skip--;
-						blocks.push(null);
-					} else {
-						blocks.push(new Block(idx, blockMeta));
-						skip = blockMeta.animations;
-					}
+					blocks.push(new Block(idx, blockMeta));
 					idx++;
 				});
 			});
@@ -134,11 +126,9 @@
 		
 		function generateBlockSelection() {
 			blocks.forEach(function (block) {
-				if (block != null) {
-					var $item = $('<li data-index="' + block.getIndex() + '" />');
-					$item.append(block.getCurrentImage());					
-					$blocks.append($item);
-				}
+				var $item = $('<li data-index="' + block.getIndex() + '" />');
+				$item.append(block.getCurrentImage());					
+				$blocks.append($item);
 			});
 
 			$blocks.children().first().addClass('active');
@@ -150,12 +140,10 @@
 		
 		function moveAnimations() {
 			blocks.forEach(function (block) {
-				if (block != null) {
-					block.moveAnimation();
-					if (block.isAnimated()) {
-						var $item = $blocks.children('li[data-index=' + block.getIndex() + ']');
-						$item.children().replaceWith(block.getCurrentImage());
-					}
+				block.moveAnimation();
+				if (block.isAnimated()) {
+					var $item = $blocks.children('li[data-index=' + block.getIndex() + ']');
+					$item.children().replaceWith(block.getCurrentImage());
 				}
 			});
 			
@@ -174,9 +162,7 @@
 			var deferreds = [];
 
 			blocks.forEach(function (block) {
-				if (block != null) {
-					deferreds.push(block.loadImages());
-				}
+				deferreds.push(block.loadImages());
 			});
 			
 			return $.when.apply($, deferreds).done(function () {
