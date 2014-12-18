@@ -1,4 +1,5 @@
 (function (window, $, undefined) {
+	"use strict"
 
 	var BLOCK_SIZE = 32,
 		ZOOM_STEP = 1.2;
@@ -352,7 +353,7 @@
 	}
 
 	$(function () {
-		ed = new Editor();
+		var ed = new Editor();
 		ed.initialize();
 	});
 }(window, jQuery));
