@@ -12,7 +12,7 @@
 		}
 	};			
 		
-	function Level(data) {
+	function Level(data, name) {
 		return {
 			getBlock: function (x, y) {
 				return data.blocks[y * data.width + x];
@@ -40,6 +40,14 @@
 			
 			getElevators: function () {
 				return data.elevators;
+			},
+			
+			getName: function () {
+				return name;
+			},
+			
+			getJson: function () {
+				return JSON.stringify(data);
 			}
 		};		
 	}
@@ -182,27 +190,31 @@
 			$canvases.css('height', level.getPixelHeight() * zoom);
 			$controls.find("input.zoom-val").val(Math.round(zoom * 100) + " %");
 		}
-				
+		
+		function openLevel(data, name) {
+			level = new Level(data, name);
+
+			$canvases.each(function () {
+				this.width = level.getPixelWidth();
+				this.height = level.getPixelHeight();
+			});
+			setZoom(1.0);
+			
+			var $dimTable = $("table.level-dimensions");
+			$dimTable.find(".level-width").html(level.getWidth());
+			$dimTable.find(".level-height").html(level.getHeight());			
+		}
+
 		function loadLevelFromFile(file) {
 			var reader = new FileReader(), 
 				deferred = $.Deferred();
 				
 			reader.onload = function (evt) {
-				level = new Level(JSON.parse(evt.target.result));
+				openLevel(JSON.parse(evt.target.result), file.name);
 				deferred.resolve();
 			};
 			reader.readAsText(file);
-			return deferred.promise().done(function () {
-				$canvases.each(function () {
-					this.width = level.getPixelWidth();
-					this.height = level.getPixelHeight();
-				});
-				setZoom(1.0);
-				
-				var $dimTable = $("table.level-dimensions");
-				$dimTable.find(".level-width").html(level.getWidth());
-				$dimTable.find(".level-height").html(level.getHeight());
-			});
+			return deferred.promise();
 		}
 		
 		function getMouseCoordinates(evt) {
@@ -218,6 +230,33 @@
 				level.setBlock(x, y, newBlock);
 				redrawBlock(x, y, blocks[newBlock]);
 			}
+		}
+		
+		function exportLevel() {
+			var data = "text/json;charset=utf-8," + encodeURIComponent(level.getJson());
+			var $link = $('<a download="' + level.getName() + '" href="data:' + data + '" class="download-link">Download</a>');
+			$link.appendTo($("body")).get(0).click();
+			$link.remove();
+		}
+		
+		function newLevel() {
+			var width = parseInt(prompt("Level width:", 20) || "20"),
+				height = parseInt(prompt("Level height:", 20) || "20"),
+				size = width * height,
+				blocks = [];
+				
+			while (size > 0) {
+				blocks.push(0);
+				size--;
+			}
+				
+			openLevel({
+				width: width,
+				height: height,
+				blocks: blocks,
+				elevators: []
+			}, "new-level.json");
+			render();
 		}
 
 		function bindEvents() {
@@ -237,6 +276,12 @@
 				if (curBlock + 1 < blockImages.length) {
 					setBlock(curBlock + 1);
 				}
+			}).on('click', 'button.save-level', function () {
+				if (level) {
+					exportLevel();					
+				}				
+			}).on('click', 'button.new-level', function () {
+				newLevel();
 			});
 			
 			var leftButtonDown = false;
