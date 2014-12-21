@@ -13,6 +13,8 @@
 	};			
 		
 	function Level(data, name) {
+		var activeElevator = -1;
+	
 		return {
 			getBlock: function (x, y) {
 				return data.blocks[y * data.width + x];
@@ -48,6 +50,14 @@
 			
 			getJson: function () {
 				return JSON.stringify(data);
+			},
+			
+			getActiveElevator: function () {
+				return activeElevator;
+			},
+			
+			setActiveElevator: function (index) {
+				activeElevator = index;
 			}
 		};		
 	}
@@ -202,7 +212,12 @@
 			
 			var $dimTable = $("table.level-dimensions");
 			$dimTable.find(".level-width").html(level.getWidth());
-			$dimTable.find(".level-height").html(level.getHeight());			
+			$dimTable.find(".level-height").html(level.getHeight());
+			
+			$controls.find("button.remove-elevator").prop('disabled', true);
+			$controls.find("button.remove-elevator-point").prop('disabled', true);
+			
+			render();
 		}
 
 		function loadLevelFromFile(file) {
@@ -256,14 +271,65 @@
 				blocks: blocks,
 				elevators: []
 			}, "new-level.json");
-			render();
+		}
+		
+		function findElevator(x, y) {
+			var elevators = level.getElevators(), points;
+			for (var i = 0; i < elevators.length; i++) {
+				points = elevators[i].controlPoints;
+				for (var j = 0; j < points.length; j++) {
+					if (points[j].x === x && points[j].y === y) {
+						return i;
+					}
+				}
+			}
+			
+			return -1;
+		}
+		
+		function chooseElevator(index) {
+			level.setActiveElevator(index);
+			renderElevators(true);		
+			
+			var noElevatorChosen = (index == -1);
+			$controls.find("button.remove-elevator").prop('disabled', noElevatorChosen);
+			$controls.find("button.remove-elevator-point").prop('disabled', noElevatorChosen);			
+		}
+		
+		function createElevator(x, y) {
+			var elevators = level.getElevators();
+			elevators.push({
+				controlPoints: [{ x: x, y: y}]
+			});
+			chooseElevator(elevators.length - 1);
+		}
+		
+		function removeElevator() {
+			level.getElevators().splice(level.getActiveElevator(), 1);
+			chooseElevator(-1);
+		}
+		
+		function popElevatorPoint() {
+			var elev = level.getElevators()[level.getActiveElevator()],
+				pointNum = elev.controlPoints.length;
+				
+			if (pointNum == 1) {
+				removeElevator();
+			} else {
+				elev.controlPoints.pop();
+				renderElevators(true);
+			}
+		}
+		
+		function addControlPoint(x, y) {
+			var elev = level.getElevators()[level.getActiveElevator()];
+			elev.controlPoints.push({x: x, y: y});
+			renderElevators(true);
 		}
 
 		function bindEvents() {
 			$controls.on('change', 'input[name=level-file]', function () {
-				loadLevelFromFile(this.files[0]).done(function () {
-					render();
-				});
+				loadLevelFromFile(this.files[0]);
 			}).on('click', 'button.zoom-in', function () {
 				setZoom(zoom * ZOOM_STEP);
 			}).on('click', 'button.zoom-out', function () {
@@ -282,6 +348,10 @@
 				}				
 			}).on('click', 'button.new-level', function () {
 				newLevel();
+			}).on('click', 'button.remove-elevator', function () {
+				removeElevator();
+			}).on('click', 'button.remove-elevator-point', function () {
+				popElevatorPoint();
 			});
 			
 			var leftButtonDown = false;
@@ -297,10 +367,25 @@
 			
 			$canvases.last().on('click', function (evt) {
 				var coords = getMouseCoordinates(evt);
-				if (!evt.shiftKey) {
-					replaceBlock(coords.x, coords.y, evt.ctrlKey ? 0 : getActiveBlock());
+				
+				if (evt.shiftKey) {
+					var elevIndex = findElevator(coords.x, coords.y);
+					
+					if (elevIndex != -1) {
+						if (elevIndex == level.getActiveElevator()) {
+							chooseElevator(-1);
+						} else {
+							chooseElevator(elevIndex);
+						}
+					} else {
+						if (level.getActiveElevator() == -1) {
+							createElevator(coords.x, coords.y);
+						} else {
+							addControlPoint(coords.x, coords.y);
+						}
+					}
 				} else {
-					setActiveBlock(level.getBlock(coords.x, coords.y));
+					replaceBlock(coords.x, coords.y, getActiveBlock());
 				}
 			}).on('mousemove', function (evt) {
 				if (leftButtonDown) {
@@ -330,20 +415,37 @@
 			}
 		}
 		
-		function renderElevators() {
+		function renderElevators(clear) {
 			var elevContext = elevatorCanvas.getContext('2d'),
 				bs = BLOCK_SIZE / 2;
-			
-			elevContext.strokeStyle = '#ff0000';
-			elevContext.beginPath();
-			level.getElevators().forEach(function (elev) {
-				elev.controlPoints.forEach(function (cp, index) {
-					if (index === 0) {
-						elevContext.moveTo(cp.x * BLOCK_SIZE + bs, cp.y * BLOCK_SIZE + bs);
-					} else {
-						elevContext.lineTo(cp.x * BLOCK_SIZE + bs, cp.y * BLOCK_SIZE + bs);
-					}
-				});
+
+			if (clear) {
+				elevContext.clearRect(0, 0, elevatorCanvas.width, elevatorCanvas.height);
+			}
+
+			level.getElevators().forEach(function (elev, elevIndex) {
+				var active = elevIndex == level.getActiveElevator();
+				
+				if (elev.controlPoints.length > 1) {
+					elevContext.beginPath();
+					elevContext.strokeStyle = active ? '#ffff00' : '#ff0000';			
+					elev.controlPoints.forEach(function (cp, pointIndex) {
+						if (pointIndex === 0) {
+							elevContext.moveTo(cp.x * BLOCK_SIZE + bs, cp.y * BLOCK_SIZE + bs);
+						} else {
+							elevContext.lineTo(cp.x * BLOCK_SIZE + bs, cp.y * BLOCK_SIZE + bs);
+						}
+					});
+					elevContext.stroke();
+				}
+				
+				var first = elev.controlPoints[0];
+				elevContext.beginPath();
+				elevContext.arc(first.x * BLOCK_SIZE + bs, first.y * BLOCK_SIZE + bs, BLOCK_SIZE / 4, 0, 2 * Math.PI, false);
+				elevContext.fillStyle = active ? 'blue' : 'red';
+				elevContext.fill();
+				elevContext.lineWidth = 2;
+				elevContext.strokeStyle = 'white';
 				elevContext.stroke();
 			});
 		}
@@ -380,17 +482,13 @@
 		function render() {
 			renderGrid();
 			renderBlocks(false);
-			renderElevators();
+			renderElevators(false);
 		}
 
 		instance = {
 			initialize: function () {
 				bindEvents();				
 				return loadData();
-			},
-
-			render: function () {
-				render();
 			}
 		}
 
