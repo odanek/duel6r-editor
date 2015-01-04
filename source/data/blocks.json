@@ -31,5 +31,8 @@
 {"kind":"FRONT4_SPRITE","animations":[34]},
 {"kind":"WALL","animations":[35]},
 {"kind":"WALL","animations":[36]},
-{"kind":"FRONT4_SPRITE","animations":[37]}
+{"kind":"FRONT4_SPRITE","animations":[37]},
+{"kind":"WATER","animations":[38,39]},
+{"kind":"WALL","animations":[40]},
+{"kind":"WALL","animations":[41]}
 ]
