@@ -111,6 +111,7 @@
 	}
 	
 	function Editor() {
+		var $editor = $(".editor");
 		var $canvases = $(".editor canvas"),
 			gridCanvas = $canvases.filter(".grid").get(0),
 			blockCanvas = $canvases.filter(".blocks").get(0),
@@ -134,27 +135,50 @@
 			});
 		}
 		
-		function setActiveBlock(index) {
-			$blocks.children().toggleClass('active', false);
-			$blocks.children("li[data-index=" + index + "]").addClass('active');		
+		function setActiveBlock(index, category) {
+			var target;
+			switch(category){
+				case 1: target = 'active';
+					break;
+				case 3: target = 'active-secondary';
+					break;
+				default: return;
+			}
+
+			$blocks.children().toggleClass(target, false);
+			$blocks.children("li[data-index=" + index + "]").addClass(target);
 		}
-		
-		function getActiveBlock() {
-			return $blocks.find('.active').data('index');
+
+		function getActiveBlock(category) {
+			var target = '.active';
+			switch(category){
+				case 1: target = '.active';
+					break;
+				case 3: target = '.active-secondary';
+					break;
+				default: return;
+			}
+			return $blocks.find(target).data('index');
 		}
 		
 		function generateBlockSelection() {
 			blocks.forEach(function (block) {
 				var $item = $('<li data-index="' + block.getIndex() + '" />');
-				$item.append(block.getCurrentImage());					
+				$item.append(block.getCurrentImage());
 				$blocks.append($item);
 			});
 
 			$blocks.children().first().addClass('active');
-			$blocks.on('click', 'li', function () {
+			$blocks.children().first().addClass('active-secondary');
+			$blocks.on('click', 'li', function (evt) {
 				var $item = $(this);
-				setActiveBlock($item.data("index"));
+				setActiveBlock($item.data("index"), evt.which);
 			});
+			$blocks.on('mousedown', 'li', function (evt) {
+				var $item = $(this);
+				setActiveBlock($item.data("index"), evt.which);
+			});
+			$blocks.contextmenu(function(evt){evt.preventDefault();});
 		}
 		
 		function moveAnimations() {
@@ -193,14 +217,28 @@
 		function loadData() {
 			return loadBlockMeta().then(loadBlockImages);
 		}
-				
-		function setZoom(val) {
+
+		function setZoom(val, center) {
+			center = center || {x:0, y:0};
+			var shrinking = val < zoom;
+			var oldZoom = zoom;
 			zoom = val;
+
 			$canvases.css('width', level.getPixelWidth() * zoom);
 			$canvases.css('height', level.getPixelHeight() * zoom);
+
+			var left = $canvases.first()[0].offsetLeft;
+			var top = $canvases.first()[0].offsetTop;
+			var dL = center.x * BLOCK_SIZE * (zoom - oldZoom);
+			var dT = center.y * BLOCK_SIZE * (zoom - oldZoom);
+			$canvases.each(function (i, c){
+				c.style.left = (left - dL) + 'px';
+				c.style.top = (top - dT) + 'px';
+			});
+
 			$controls.find("input.zoom-val").val(Math.round(zoom * 100) + " %");
 		}
-		
+
 		function openLevel(data, name) {
 			level = new Level(data, name);
 
@@ -241,6 +279,9 @@
 		}
 		
 		function replaceBlock(x, y, newBlock) {
+			if(!level) {
+				return;
+			}
 			if (newBlock != level.getBlock(x, y)) {
 				level.setBlock(x, y, newBlock);
 				redrawBlock(x, y, blocks[newBlock]);
@@ -327,14 +368,20 @@
 			renderElevators(true);
 		}
 
+		function zoomIn(center){
+			setZoom(zoom * ZOOM_STEP, center);
+		}
+
+		function zoomOut(center){
+			setZoom(zoom / ZOOM_STEP, center);
+		}
+
 		function bindEvents() {
 			$controls.on('change', 'input[name=level-file]', function () {
 				loadLevelFromFile(this.files[0]);
-			}).on('click', 'button.zoom-in', function () {
-				setZoom(zoom * ZOOM_STEP);
-			}).on('click', 'button.zoom-out', function () {
-				setZoom(zoom / ZOOM_STEP);
-			}).on('click', 'button.previous-block', function () {
+			}).on('click', 'button.zoom-in', zoomIn)
+			.on('click', 'button.zoom-out', zoomOut)
+			.on('click', 'button.previous-block', function () {
 				if (curBlock > 0) {
 					setBlock(curBlock - 1);
 				}
@@ -355,16 +402,54 @@
 			});
 			
 			var leftButtonDown = false;
-			$(document).on('mousedown', function (evt) {
-				if (evt.which == 1) {
-					leftButtonDown = true;
+			var middleButtonDown = false;
+			var rightButtonDown = false;
+			var dx = 0;
+			var dy = 0;
+			$editor.on('mousedown', function (evt) {
+				var coords = getMouseCoordinates(evt);
+				switch(evt.which){
+					case 1: leftButtonDown = true;
+						break;
+					case 2: middleButtonDown = true;
+						evt.preventDefault();
+						break;
+					case 3: rightButtonDown = false;
+						replaceBlock(coords.x, coords.y, getActiveBlock(evt.which));
+						evt.preventDefault();
+						break;
 				}
 			}).on('mouseup', function (evt) {
-				if (evt.which == 1) {
-					leftButtonDown = false;
+				switch(evt.which){
+					case 1: leftButtonDown = false;
+						break;
+					case 2: middleButtonDown = false;
+						break;
+					case 3: rightButtonDown = false;
+						break;
+				}
+			}).on('mousemove', function (evt) {
+				middleButtonDown = (evt.buttons & 4) === 4;
+				if(middleButtonDown) {
+					$canvases.each(function (i, c){
+						c.style.left = (c.offsetLeft - (dx - evt.screenX)) + 'px';
+						c.style.top = (c.offsetTop - (dy - evt.screenY)) + 'px';
+					});
+				}
+				dx = evt.screenX;
+				dy = evt.screenY;
+			});
+			$editor[0].addEventListener('wheel', function(evt){
+				var coords = getMouseCoordinates(evt);
+				if(evt.ctrlKey){
+					if(evt.deltaY < 0){
+						zoomIn(coords);
+					} else if (evt.deltaY > 0){
+						zoomOut(coords);
+					}
+					evt.preventDefault();
 				}
 			});
-			
 			$canvases.last().on('click', function (evt) {
 				var coords = getMouseCoordinates(evt);
 				
@@ -385,14 +470,19 @@
 						}
 					}
 				} else {
-					replaceBlock(coords.x, coords.y, getActiveBlock());
+					replaceBlock(coords.x, coords.y, getActiveBlock(evt.which));
 				}
 			}).on('mousemove', function (evt) {
-				if (leftButtonDown) {
+				leftButtonDown = (evt.buttons & 1) === 1;
+				rightButtonDown = (evt.buttons & 2) === 2;
+				middleButtonDown = (evt.buttons & 4) === 4;
+				var which = leftButtonDown ? 1 : rightButtonDown ? 3 : null;
+				if (which) {
 					var coords = getMouseCoordinates(evt);
-					replaceBlock(coords.x, coords.y, evt.ctrlKey ? 0 : getActiveBlock());
+					replaceBlock(coords.x, coords.y, evt.ctrlKey ? 0 : getActiveBlock(which));
 				}
 			});
+			$editor.contextmenu(function(evt){evt.preventDefault();});
 		}
 				
 		function renderGrid() {

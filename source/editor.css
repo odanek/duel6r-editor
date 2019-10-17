@@ -79,7 +79,9 @@ table.level-dimensions tr td:first-child {
 .blocks > ul > li:hover {
 	box-shadow: 0 0 4px 4px #090;
 }
-
+.blocks > ul > li.active-secondary {
+	box-shadow: 0 0 4px 4px #900;
+}
 .blocks > ul img {
 	display: inline-block;
 	vertical-align: bottom;
