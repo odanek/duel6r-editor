@@ -477,7 +477,7 @@
 				rightButtonDown = (evt.buttons & 2) === 2;
 				middleButtonDown = (evt.buttons & 4) === 4;
 				var which = leftButtonDown ? 1 : rightButtonDown ? 3 : null;
-				if (which) {
+				if (which && !evt.shiftKey) {
 					var coords = getMouseCoordinates(evt);
 					replaceBlock(coords.x, coords.y, evt.ctrlKey ? 0 : getActiveBlock(which));
 				}
