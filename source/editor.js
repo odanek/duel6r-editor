@@ -277,7 +277,10 @@
 				y: Math.floor((evt.pageY - ofs.top) / zoom / BLOCK_SIZE),
 			}
 		}
-		
+		function pickBlockFromCanvas(x, y, category) {
+			setActiveBlock(level.getBlock(x, y), category)
+		}
+
 		function replaceBlock(x, y, newBlock) {
 			if(!level) {
 				return;
@@ -414,8 +417,12 @@
 					case 2: middleButtonDown = true;
 						evt.preventDefault();
 						break;
-					case 3: rightButtonDown = false;
-						replaceBlock(coords.x, coords.y, getActiveBlock(evt.which));
+					case 3: rightButtonDown = true;
+						if(evt.altKey){
+							pickBlockFromCanvas(coords.x, coords.y, evt.which);
+						} else {
+							replaceBlock(coords.x, coords.y, getActiveBlock(evt.which));
+						}
 						evt.preventDefault();
 						break;
 				}
@@ -469,17 +476,23 @@
 							addControlPoint(coords.x, coords.y);
 						}
 					}
+				} else if(evt.altKey){
+					pickBlockFromCanvas(coords.x, coords.y, evt.which);
 				} else {
-					replaceBlock(coords.x, coords.y, getActiveBlock(evt.which));
+					replaceBlock(coords.x, coords.y, evt.ctrlKey ? 0 : getActiveBlock(evt.which));
 				}
 			}).on('mousemove', function (evt) {
 				leftButtonDown = (evt.buttons & 1) === 1;
 				rightButtonDown = (evt.buttons & 2) === 2;
 				middleButtonDown = (evt.buttons & 4) === 4;
 				var which = leftButtonDown ? 1 : rightButtonDown ? 3 : null;
-				if (which && !evt.shiftKey) {
+				if (which) {
 					var coords = getMouseCoordinates(evt);
-					replaceBlock(coords.x, coords.y, evt.ctrlKey ? 0 : getActiveBlock(which));
+					if(evt.altKey){
+						pickBlockFromCanvas(coords.x, coords.y, evt.which);
+					} else if(!evt.shiftKey){
+						replaceBlock(coords.x, coords.y, evt.ctrlKey ? 0 : getActiveBlock(which));
+					}
 				}
 			});
 			$editor.contextmenu(function(evt){evt.preventDefault();});
