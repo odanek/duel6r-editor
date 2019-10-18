@@ -290,7 +290,13 @@
 				redrawBlock(x, y, blocks[newBlock]);
 			}
 		}
-		
+
+		function saveLevelDialog() {
+				if(level){
+					exportLevel();
+				}
+		}
+
 		function exportLevel() {
 			var data = "text/json;charset=utf-8," + encodeURIComponent(level.getJson());
 			var $link = $('<a download="' + level.getName() + '" href="data:' + data + '" class="download-link">Download</a>');
@@ -392,18 +398,26 @@
 				if (curBlock + 1 < blockImages.length) {
 					setBlock(curBlock + 1);
 				}
-			}).on('click', 'button.save-level', function () {
-				if (level) {
-					exportLevel();					
-				}				
-			}).on('click', 'button.new-level', function () {
+			}).on('click', 'button.save-level', saveLevelDialog)
+			.on('click', 'button.new-level', function () {
 				newLevel();
 			}).on('click', 'button.remove-elevator', function () {
 				removeElevator();
 			}).on('click', 'button.remove-elevator-point', function () {
 				popElevatorPoint();
 			});
-			
+			window.document.addEventListener('keydown', function save(evt){
+				if(evt.ctrlKey || evt.metaKey) {
+					switch (String.fromCharCode(evt.which).toLowerCase()){
+						case 's': saveLevelDialog();
+							evt.preventDefault();
+							evt.stopPropagation();
+							return false;
+						break;
+					}
+				}
+			}, true);
+
 			var leftButtonDown = false;
 			var middleButtonDown = false;
 			var rightButtonDown = false;
