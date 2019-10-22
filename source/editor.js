@@ -12,6 +12,19 @@
 		}
 	};			
 		
+	var mouse = {
+		x: 0,
+		y: 0
+	};
+
+	var EditorMode = {
+		BLOCK: 'block',
+		ELEVATOR: 'elevator'
+	}
+
+	var hoveredElevator = -1;
+	var editorMode = EditorMode.BLOCK;
+
 	function Level(data, name) {
 		var activeElevator = -1;
 	
@@ -277,6 +290,17 @@
 				y: Math.floor((evt.pageY - ofs.top) / zoom / BLOCK_SIZE),
 			}
 		}
+		function getMouseCoordinatesForElevators(evt) {
+			var ofs = $(blockCanvas).offset();
+			var blockX = (evt.pageX - ofs.left) / zoom / BLOCK_SIZE;
+			var blockY = (evt.pageY - ofs.top) / zoom / BLOCK_SIZE;
+			var baseX = Math.floor(blockX);
+			var baseY = Math.floor(blockY);
+			return {
+				x: baseX + Math.floor((blockX - baseX - 0.25) * 2) / 2,
+				y: baseY + Math.floor((blockY - baseY - 0.25) * 2) / 2
+			}
+		}
 		function pickBlockFromCanvas(x, y, category) {
 			setActiveBlock(level.getBlock(x, y), category)
 		}
@@ -322,13 +346,21 @@
 				elevators: []
 			}, "new-level.json");
 		}
-		
-		function findElevator(x, y) {
+		function delta(x, y, x2, y2) {
+				return Math.sqrt(Math.pow(x - x2, 2) + Math.pow(y - y2, 2));
+		}
+
+		function findElevator(x, y, result) {
+			if(!result){
+				result = {};
+			}
 			var elevators = level.getElevators(), points;
 			for (var i = 0; i < elevators.length; i++) {
 				points = elevators[i].controlPoints;
 				for (var j = 0; j < points.length; j++) {
-					if (points[j].x === x && points[j].y === y) {
+					if(delta(points[j].x, points[j].y, x, y) <= 0.1) {
+						result.circular = j === 0;
+						result.elevator = elevators[i];
 						return i;
 					}
 				}
@@ -349,7 +381,11 @@
 		function createElevator(x, y) {
 			var elevators = level.getElevators();
 			elevators.push({
-				controlPoints: [{ x: x, y: y}]
+				controlPoints: [{
+					x: x,
+					y: y,
+				  wait: 0}],
+				circular: false,
 			});
 			chooseElevator(elevators.length - 1);
 		}
@@ -373,7 +409,11 @@
 		
 		function addControlPoint(x, y) {
 			var elev = level.getElevators()[level.getActiveElevator()];
-			elev.controlPoints.push({x: x, y: y});
+			elev.controlPoints.push({
+				x: x,
+				y: y,
+				wait: 0
+			});
 			renderElevators(true);
 		}
 
@@ -451,6 +491,15 @@
 				}
 			}).on('mousemove', function (evt) {
 				middleButtonDown = (evt.buttons & 4) === 4;
+				var oldMode = editorMode;
+				editorMode = evt.shiftKey ? EditorMode.ELEVATOR : EditorMode.BLOCK;
+				if(oldMode !== editorMode || editorMode === EditorMode.ELEVATOR){
+					var coords = getMouseCoordinatesForElevators(evt);
+				  hoveredElevator = findElevator(coords.x, coords.y);
+					renderElevators(true);
+				}
+				mouse.x = evt.pageX;
+				mouse.y = evt.pageY;
 				if(middleButtonDown) {
 					$canvases.each(function (i, c){
 						c.style.left = (c.offsetLeft - (dx - evt.screenX)) + 'px';
@@ -475,10 +524,13 @@
 				var coords = getMouseCoordinates(evt);
 				
 				if (evt.shiftKey) {
-					var elevIndex = findElevator(coords.x, coords.y);
-					
+					coords = getMouseCoordinatesForElevators(evt);
+					var result = {};
+					var elevIndex = findElevator(coords.x, coords.y, result);
+
 					if (elevIndex != -1) {
 						if (elevIndex == level.getActiveElevator()) {
+							result.elevator.circular  = result.circular;
 							chooseElevator(-1);
 						} else {
 							chooseElevator(elevIndex);
@@ -531,21 +583,26 @@
 				gridContext.stroke();			
 			}
 		}
-		
-		function renderElevators(clear) {
+
+		var renderElevators = function renderElevators(clear) {
 			var elevContext = elevatorCanvas.getContext('2d'),
 				bs = BLOCK_SIZE / 2;
+			elevContext.setLineDash([]);
+			elevContext.font = '12px serif';
 
 			if (clear) {
 				elevContext.clearRect(0, 0, elevatorCanvas.width, elevatorCanvas.height);
 			}
-
+			var activeElevator = null;
 			level.getElevators().forEach(function (elev, elevIndex) {
 				var active = elevIndex == level.getActiveElevator();
-				
+				var hovered = hoveredElevator == elevIndex;
+				if(active) {
+					activeElevator = elev;
+				}
 				if (elev.controlPoints.length > 1) {
 					elevContext.beginPath();
-					elevContext.strokeStyle = active ? '#ffff00' : '#ff0000';			
+					elevContext.strokeStyle = active || hovered ? '#ffff00' : '#ff0000';
 					elev.controlPoints.forEach(function (cp, pointIndex) {
 						if (pointIndex === 0) {
 							elevContext.moveTo(cp.x * BLOCK_SIZE + bs, cp.y * BLOCK_SIZE + bs);
@@ -553,18 +610,53 @@
 							elevContext.lineTo(cp.x * BLOCK_SIZE + bs, cp.y * BLOCK_SIZE + bs);
 						}
 					});
+					if(elev.circular) {
+						var p = elev.controlPoints[0];
+						elevContext.lineTo(p.x * BLOCK_SIZE + bs, p.y * BLOCK_SIZE + bs);
+					}
 					elevContext.stroke();
 				}
-				
-				var first = elev.controlPoints[0];
+
+				elev.controlPoints.forEach(function (coords, cpIndex) {
+					var first = cpIndex === 0;
+					renderPoint(coords, active ? 'blue' : hovered ? 'yellow' : 'red', first ? 1 : 0.5)
+				})
+			});
+
+			function renderPoint(coords, color, size){
+				size = size || 1;
 				elevContext.beginPath();
-				elevContext.arc(first.x * BLOCK_SIZE + bs, first.y * BLOCK_SIZE + bs, BLOCK_SIZE / 4, 0, 2 * Math.PI, false);
-				elevContext.fillStyle = active ? 'blue' : 'red';
+				elevContext.arc(coords.x * BLOCK_SIZE + bs, coords.y * BLOCK_SIZE + bs, BLOCK_SIZE * (size / 4), 0, 2 * Math.PI, false);
+				elevContext.fillStyle = color;
 				elevContext.fill();
 				elevContext.lineWidth = 2;
 				elevContext.strokeStyle = 'white';
 				elevContext.stroke();
-			});
+
+			}
+			if(editorMode === EditorMode.ELEVATOR){
+				var evt = {pageX: mouse.x, pageY: mouse.y};
+				var coords = getMouseCoordinatesForElevators(evt);
+				renderPoint(coords, 'yellow')
+
+				if(activeElevator && activeElevator.controlPoints.length > 0){
+					elevContext.beginPath();
+					elevContext.setLineDash([5,15]);
+					elevContext.strokeStyle = activeElevator ? '#ffff00' : '#ff0000';
+					var cp = activeElevator.controlPoints[activeElevator.controlPoints.length - 1];
+					elevContext.moveTo(cp.x * BLOCK_SIZE + bs, cp.y * BLOCK_SIZE + bs);
+					elevContext.lineTo(coords.x * BLOCK_SIZE + bs, coords.y * BLOCK_SIZE + bs);
+					elevContext.stroke();
+
+					if(activeElevator.controlPoints.length > 1){
+						var first = activeElevator.controlPoints[0];
+						elevContext.strokeStyle = 'yellow;'
+						elevContext.fillText('FINISH - CIRCULAR', (first.x - 0.5) * BLOCK_SIZE + bs, (first.y - 0.5) * BLOCK_SIZE + bs);
+						elevContext.fillText('FINISH', (cp.x - 0.5) * BLOCK_SIZE + bs, (cp.y - 0.5) * BLOCK_SIZE + bs);
+					}
+
+				}
+			}
 		}
 		
 		function renderBlock(x, y, block) {
