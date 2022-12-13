@@ -23,6 +23,8 @@
 	}
 
 	var hoveredElevator = -1;
+	var draggedCp = -1;
+	var draggedElevator = -1;
 	var editorMode = EditorMode.BLOCK;
 
 	function Level(data, name) {
@@ -99,7 +101,7 @@
 								
 				for (var i = 0; i < animations; i++) {
 					var img = new Image();
-					var path = 'blocks/' + meta.animations[i] + '.png';
+					var path = 'source/blocks/' + meta.animations[i] + '.png';
 					img.src = path;
 					img.onload = function () {
 						loaded++;
@@ -139,7 +141,7 @@
 			curBlock = 0;
 			
 		function loadBlockMeta() {
-			return $.getJSON('data/blocks.json').done(function (data) {
+			return $.getJSON('source/data/blocks.json').done(function (data) {
 				var idx = 0;					
 				data.forEach(function (blockMeta) {
 					blocks.push(new Block(idx, blockMeta));
@@ -228,7 +230,7 @@
 		}
 		
 		function loadData() {
-			return loadBlockMeta().then(loadBlockImages);
+			return loadBlockMeta().then(loadBlockImages)
 		}
 
 		function setZoom(val, center) {
@@ -339,12 +341,13 @@
 				size--;
 			}
 				
-			openLevel({
+			Window.data = {
 				width: width,
 				height: height,
 				blocks: blocks,
 				elevators: []
-			}, "new-level.json");
+			}
+			openLevel(Window.data,  "new-level.json");
 		}
 		function delta(x, y, x2, y2) {
 				return Math.sqrt(Math.pow(x - x2, 2) + Math.pow(y - y2, 2));
@@ -361,12 +364,12 @@
 					if(delta(points[j].x, points[j].y, x, y) <= 0.1) {
 						result.circular = j === 0;
 						result.elevator = elevators[i];
-						return i;
+						return [i, j];
 					}
 				}
 			}
 			
-			return -1;
+			return [-1,-1];
 		}
 		
 		function chooseElevator(index) {
@@ -464,7 +467,6 @@
 			var dx = 0;
 			var dy = 0;
 			$editor.on('mousedown', function (evt) {
-				var coords = getMouseCoordinates(evt);
 				switch(evt.which){
 					case 1: leftButtonDown = true;
 						break;
@@ -480,31 +482,77 @@
 						evt.preventDefault();
 						break;
 				}
+
+				if(evt.which === 1 || evt.which === 2){
+					var coords = getMouseCoordinates(evt);
+					var oldMode = editorMode;
+	
+					editorMode = evt.shiftKey ? EditorMode.ELEVATOR : EditorMode.BLOCK;
+					if (oldMode !== editorMode || editorMode === EditorMode.ELEVATOR) {
+						var coords = getMouseCoordinatesForElevators(evt);
+						const [elevator, cp] = findElevator(coords.x, coords.y);
+						draggedElevator = elevator
+						draggedCp = cp
+					}
+				}
 			}).on('mouseup', function (evt) {
 				switch(evt.which){
 					case 1: leftButtonDown = false;
+						draggedCp = -1;
+						draggedElevator = -1;
 						break;
 					case 2: middleButtonDown = false;
+						draggedCp = -1;
+						draggedElevator = -1;
 						break;
 					case 3: rightButtonDown = false;
 						break;
 				}
 			}).on('mousemove', function (evt) {
+				leftButtonDown = (evt.buttons & 1) === 1;
 				middleButtonDown = (evt.buttons & 4) === 4;
 				var oldMode = editorMode;
 				editorMode = evt.shiftKey ? EditorMode.ELEVATOR : EditorMode.BLOCK;
 				if(oldMode !== editorMode || editorMode === EditorMode.ELEVATOR){
 					var coords = getMouseCoordinatesForElevators(evt);
-				  hoveredElevator = findElevator(coords.x, coords.y);
+				    const [elevator, cp] = findElevator(coords.x, coords.y);
+					hoveredElevator = elevator
 					renderElevators(true);
+				}
+				if(leftButtonDown){
+					if(draggedCp != -1 && draggedElevator != -1) {
+						const elev = level.getElevators()[draggedElevator]
+						const cp = elev.controlPoints[draggedCp]
+						cp.x = coords.x
+						cp.y = coords.y
+						renderElevators(true);
+					}
 				}
 				mouse.x = evt.pageX;
 				mouse.y = evt.pageY;
 				if(middleButtonDown) {
-					$canvases.each(function (i, c){
-						c.style.left = (c.offsetLeft - (dx - evt.screenX)) + 'px';
-						c.style.top = (c.offsetTop - (dy - evt.screenY)) + 'px';
-					});
+					if(editorMode === EditorMode.ELEVATOR){
+						if(draggedElevator > -1){
+							var coords = getMouseCoordinatesForElevators(evt);
+							const elev = level.getElevators()[draggedElevator]
+							const points = elev.controlPoints;
+							const cp = points[draggedCp]
+							const deltaX = cp.x - coords.x
+							const deltaY = cp.y - coords.y
+							for (var j = 0; j < points.length; j++) {
+								const point = points[j]
+								point.x -= deltaX
+								point.y -= deltaY
+							}
+							renderElevators(true);
+
+						}
+					} else {
+						$canvases.each(function (i, c){
+							c.style.left = (c.offsetLeft - (dx - evt.screenX)) + 'px';
+							c.style.top = (c.offsetTop - (dy - evt.screenY)) + 'px';
+						});
+					}
 				}
 				dx = evt.screenX;
 				dy = evt.screenY;
@@ -526,7 +574,7 @@
 				if (evt.shiftKey) {
 					coords = getMouseCoordinatesForElevators(evt);
 					var result = {};
-					var elevIndex = findElevator(coords.x, coords.y, result);
+					var [elevIndex, cp] = findElevator(coords.x, coords.y, result);
 
 					if (elevIndex != -1) {
 						if (elevIndex == level.getActiveElevator()) {
